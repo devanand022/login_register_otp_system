@@ -1,13 +1,15 @@
 <?php
+session_start();
 
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use function IncludeFiles\generateCaptcha;
+use Database\DB;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-include '../DATABASE/db.php';
-require_once '../INCLUDE/generateCaptcha.php';
-require_once '../INCLUDE/PHPMailer/src/Exception.php';
-require_once '../INCLUDE/PHPMailer/src/PHPMailer.php';
-require_once '../INCLUDE/PHPMailer/src/SMTP.php';
+DB::init();
+$conn = DB::$conn;
 
 if (isset($_GET['action']) && $_GET['action'] === 'refresh_captcha') {
   echo generateCaptcha();
@@ -17,6 +19,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_captcha') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $errors = [];
   $db_error = "";
+  define('INVALID_USERNAME', 'Invalid Username or Password');
 
   header('Content-Type: application/json');
 
@@ -59,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if ($result->num_rows !== 1) {
         echo json_encode([
           'status' => 'error',
-          'errors' => ['db' => 'Invalid Username or Password'],
+          'errors' => ['db' => INVALID_USERNAME],
           'new_captcha' => $captchaText
         ]);
         exit;
@@ -70,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if (!password_verify($_POST['password'], $user['password'])) {
         echo json_encode([
           'status' => 'error',
-          'errors' => ['db' => 'Invalid Username or Password'],
+          'errors' => ['db' => INVALID_USERNAME],
           'new_captcha' => $captchaText
         ]);
         exit;
@@ -127,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       ]);
       exit;
     } catch (Exception $e) {
-      $db_error = "Invalid Username or Password";
+      $db_error = INVALID_USERNAME;
       echo json_encode([
         'status' => 'error',
         'errors' => ['db' => $db_error],

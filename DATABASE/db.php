@@ -1,12 +1,18 @@
 <?php
-  $host = "localhost";
-  $user = "root";
-  $db = "staff_details";
-  $pass = "";
+namespace Database;
 
-  $conn = new mysqli($host, $user, $pass, $db);
-  if($conn->connect_error){
-    die("Connection falied" . $conn->connect_error);
-  }
+class DB {
+    public static $conn;
 
-  session_start();
+    public static function init() {
+        $host = "localhost";
+        $user = "root";
+        $db = "staff_details";
+        $pass = "";
+
+        self::$conn = new \mysqli($host, $user, $pass, $db);
+        if (self::$conn->connect_error) {
+            die("Connection failed: " . self::$conn->connect_error);
+        }
+    }
+}

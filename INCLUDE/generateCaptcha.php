@@ -1,6 +1,8 @@
 <?php
 
-function generateCaptcha()
+namespace IncludeFiles;
+
+function generateCaptcha(): string
 {
   $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghijklmnopqrstuvwxyz';
   $captcha = '';

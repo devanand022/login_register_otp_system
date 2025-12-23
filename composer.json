@@ -1,0 +1,19 @@
+{
+    "name": "dev/login_system",
+    "description": "login system developed using php",
+    "type": "project",
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "Database\\": "DATABASE/",
+            "IncludeFiles\\": "INCLUDE/"
+        },
+        "files": [
+            "INCLUDE/generateCaptcha.php"
+        ]
+    },
+    "require": {
+        "phpmailer/phpmailer": "^7.0"
+    }
+}
