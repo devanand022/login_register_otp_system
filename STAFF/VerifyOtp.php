@@ -1,13 +1,14 @@
 <?php
 session_start();
 
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Database\DB;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-include '../DATABASE/db.php';
-require_once '../INCLUDE/PHPMailer/src/Exception.php';
-require_once '../INCLUDE/PHPMailer/src/PHPMailer.php';
-require_once '../INCLUDE/PHPMailer/src/SMTP.php';
+DB::init();
+$conn = DB::$conn;
 
 if (!isset($_SESSION['user_id'])) {
   header("Location: ./index.php");

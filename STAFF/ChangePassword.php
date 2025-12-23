@@ -1,7 +1,12 @@
 <?php
 session_start();
 
-include '../DATABASE/db.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Database\DB;
+
+DB::init();
+$conn = DB::$conn;
 
 if (!isset($_SESSION['user_id'])) {
   header("Location: ./index.php");

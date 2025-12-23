@@ -1,7 +1,13 @@
 <?php
 session_start();
-include '../DATABASE/db.php';
-include '../INCLUDE/generateCaptcha.php';
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use function IncludeFiles\generateCaptcha;
+use Database\DB;
+
+DB::init();
+$conn = DB::$conn;
 
 //Queries
 $designation_query_result = $conn->query("SELECT * FROM designation");
