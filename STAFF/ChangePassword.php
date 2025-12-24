@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           'message' => 'Failed to update password.'
         ]);
       }
-
+      $conn->commit();
       $stmt->close();
     } catch (Exception $e) {
       $conn->rollback();

@@ -35,15 +35,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = $_SESSION['user_id'];
     $now = time();
 
+    $conn->begin_transaction();
+
     $stmt = $conn->prepare("SELECT * FROM staff_otps WHERE staff_id=? AND otp=? AND expries_at >=?");
     $stmt->bind_param("isi", $user_id, $otp, $now);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($result->num_rows === 1) {
-      $stmt = $conn->prepare("DELETE FROM staff_otps WHERE staff_id=?");
-      $stmt->bind_param("i", $user_id);
-      $stmt->execute();
+      $delstmt = $conn->prepare("DELETE FROM staff_otps WHERE staff_id=?");
+      $delstmt->bind_param("i", $user_id);
+      $delstmt->execute();
+      $delstmt->close();
+
+      $conn->commit();
+      
       $_SESSION['logged_in'] = true;
       $response['status'] = 'success';
       if ($page === 'login') {
@@ -68,13 +74,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = $_SESSION['user_id'];
     $expries = $now + 300;
 
-    $stmt = $conn->prepare("DELETE FROM staff_otps WHERE staff_id=?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
+    $conn->begin_transaction();
+
+    $delstmt = $conn->prepare("DELETE FROM staff_otps WHERE staff_id=?");
+    $delstmt->bind_param("i", $user_id);
+    $delstmt->execute();
+    $delstmt->close();
 
     $stmt = $conn->prepare("INSERT INTO staff_otps(staff_id, otp, created_at, expries_at) VALUES (?, ?, ?, ?)");
     $stmt->bind_param("isii", $user_id, $otp, $now, $expries);
     $stmt->execute();
+    $stmt->close();
+
+    $conn->commit();
 
     $mail = new PHPMailer(true);
     try {
