@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   if (empty($errors)) {
+    $conn->begin_transaction();
     try {
       $stmt = $conn->prepare("SELECT id, emp_code, email, password FROM staff WHERE emp_code = ? LIMIT 1");
       $stmt->bind_param("s", $_POST['username']);
@@ -89,11 +90,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $now = time();
       $expires = $now + 300;
 
-      $conn->query("DELETE FROM staff_otps WHERE staff_id={$user['id']}");
+      $delstmt = $conn->prepare("DELETE FROM staff_otps WHERE staff_id=?");
+      $delstmt->bind_param("i", $user['id']);
+      $delstmt->execute();
+      $delstmt->close();
 
       $otpstmt = $conn->prepare("INSERT INTO staff_otps (staff_id, otp, created_at, expries_at) VALUES (?, ?, ?, ?)");
       $otpstmt->bind_param("isii", $user['id'], $otp, $now, $expires);
       $otpstmt->execute();
+      $otpstmt->close();
+
+      $conn->commit();
 
       $mail = new PHPMailer(true);
       try {
@@ -113,7 +120,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mail->Body = "<p>Your OTP is: </p><h2>{$otp}</h2><p>Valid for 5 minutes.</p>";
 
         $mail->send();
-        $otpstmt->close();
       } catch (Exception $e) {
         echo json_encode([
           'status' => 'error',
@@ -130,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       ]);
       exit;
     } catch (Exception $e) {
+      $conn->rollback();
       $db_error = INVALID_USERNAME;
       echo json_encode([
         'status' => 'error',

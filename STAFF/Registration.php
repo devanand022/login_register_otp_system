@@ -107,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       if ($stmt->execute()) {
         $conn->commit();
+        $stmt->close();
         echo json_encode([
           'status' => 'success',
           'message' => 'Staff registered successfully',
@@ -120,7 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           'new_captcha' => $captchaText
         ]);
       }
-      $stmt->close();
     } catch (Exception $e) {
       $conn->rollback();
       $db_error = "Failed to insert data: " . $e->getMessage();
