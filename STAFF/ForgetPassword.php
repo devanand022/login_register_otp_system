@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       $user = $result->fetch_assoc();
       $_SESSION['user_id']   = $user['id'];
+      $_SESSION['email']   = $user['email'];
       $stmt->close();
 
       $otp = rand(100000, 999999);
