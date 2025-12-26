@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <h3 class="text-center text-primary py-3">Staff Registration Form</h3>
           <!-- Form Starting -->
           <form id="reg_form" method="POST" autocomplete="off" novalidate>
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>" >
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             <div class="row g-3">
               <?php foreach ($personalDetailsfields as $field): ?>
                 <div class="col-md-<?= $field['col'] ?? 6 ?> mb-2">
