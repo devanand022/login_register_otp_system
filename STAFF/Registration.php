@@ -3,15 +3,21 @@ session_start();
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use App\Auth\Authservice;
+use App\Auth\AuthException;
+use App\Security\Csrf;
+use App\Repository\MasterDataRepository;
 use function IncludeFiles\generateCaptcha;
-use Database\DB;
 
-DB::init();
-$conn = DB::$conn;
+$auth = new Authservice();
+$repo = new MasterDataRepository();
 
-//Queries
-$designation_query_result = $conn->query("SELECT * FROM designation");
-$department_query_result = $conn->query("SELECT * FROM department");
+$errors = [];
+$db_error = "";
+
+$designation_result = $repo->getDesignations();
+$department_result = $repo->getDepartments();
+$csrfToken = Csrf::token();
 
 //Fields
 $personalDetailsfields = [
@@ -19,16 +25,16 @@ $personalDetailsfields = [
   ['label' => 'Employee Code', 'name' => 'emp_code', 'type' => 'text', 'placeholder' => 'Enter Your Employee Code', 'required' => true, 'col' => '6'],
   ['label' => 'Email', 'name' => 'email', 'type' => 'email', 'placeholder' => 'Enter Your Email', 'required' => true, 'col' => '6'],
   ['label' => 'Mobile Number', 'name' => 'mobile', 'type' => 'text', 'placeholder' => 'Enter Your Mobile Number', 'required' => true, 'col' => '6'],
-  ['label' => 'Designation', 'name' => 'designation', 'type' => 'select', 'options' => $designation_query_result, 'placeholder' => 'Select Designation', 'required' => true, 'col' => '6'],
-  ['label' => 'Department', 'name' => 'department', 'type' => 'select', 'options' => $department_query_result, 'placeholder' => 'Select Department', 'required' => true, 'col' => '6'],
+  ['label' => 'Designation', 'name' => 'designation', 'type' => 'select', 'options' => $designation_result, 'placeholder' => 'Select Designation', 'required' => true, 'col' => '6'],
+  ['label' => 'Department', 'name' => 'department', 'type' => 'select', 'options' => $department_result, 'placeholder' => 'Select Department', 'required' => true, 'col' => '6'],
   ['label' => 'Date of Birth', 'name' => 'dob', 'type' => 'date', 'required' => true, 'col' => '4'],
   ['label' => 'Gender', 'name' => 'gender', 'type' => 'select', 'options' => [
-    ['value' => 'male', 'text' => 'Male'],
-    ['value' => 'female', 'text' => 'Female']
+    ['id' => 'male', 'gender' => 'Male'],
+    ['id' => 'female', 'gender' => 'Female']
   ], 'placeholder' => 'Select Gender', 'required' => true, 'col' => '4'],
   ['label' => 'Category', 'name' => 'category', 'type' => 'select', 'options' => [
-    ['value' => 'teaching', 'text' => 'Teaching'],
-    ['value' => 'non_teaching', 'text' => 'Non Teaching'],
+    ['id' => 'teaching', 'category' => 'Teaching'],
+    ['id' => 'non_teaching', 'category' => 'Non Teaching'],
   ], 'placeholder' => 'Select Category', 'required' => true, 'col' => '4'],
   ['label' => 'Password', 'name' => 'password', 'type' => 'password', 'placeholder' => 'Enter Your Password', 'required' => true, 'col' => '6'],
   ['label' => 'Confirm Password', 'name' => 'confirm_password', 'type' => 'text', 'placeholder' => 'Enter Your Password Again', 'required' => true, 'col' => '6'],
@@ -40,11 +46,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'refresh_captcha') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
   $captchaInput = $_POST['captcha'];
-
-  $errors = [];
-  $db_error = "";
 
   //All Fields Validation
   foreach ($personalDetailsfields as $field) {
@@ -62,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!empty($_POST['email']) && !filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
     $errors['email'] = "Invalid email address.";
   }
+
   // Password Validation
   if (!empty($_POST['password']) && !empty($_POST['confirm_password'])) {
     if ($_POST['password'] !== $_POST['confirm_password']) {
@@ -82,7 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $_SESSION['captcha'] = $captchaText;
   }
 
-
   //Headers
   header('Content-Type: application/json');
 
@@ -96,34 +98,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   if (empty($errors)) {
-
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $conn->begin_transaction();
+    $data = [
+      'fullname' => trim($_POST['fullname']),
+      'email' => trim($_POST['email']),
+      'emp_code' => trim($_POST['emp_code']),
+      'mobile' => trim($_POST['mobile']),
+      'designation' => $_POST['designation'],
+      'department' => $_POST['department'],
+      'dob' => $_POST['dob'],
+      'gender' => $_POST['gender'],
+      'category' => $_POST['category'],
+      'password' => $_POST['password'],
+    ];
 
     try {
-      $stmt = $conn->prepare("INSERT INTO staff(fullname, emp_code, email, mobile, designation, department, dob, gender, category, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-      $stmt->bind_param("ssssssssss", $_POST['fullname'], $_POST['emp_code'], $_POST['email'], $_POST['mobile'], $_POST['designation'], $_POST['department'], $_POST['dob'], $_POST['gender'], $_POST['category'], $password);
-
-      if ($stmt->execute()) {
-        $conn->commit();
-        $stmt->close();
-        echo json_encode([
-          'status' => 'success',
-          'message' => 'Staff registered successfully',
-          'new_captcha' => $captchaText,
-          'redirect' => './index.php'
-        ]);
-      } else {
-        echo json_encode([
-          'status' => 'error',
-          'message' => $stmt->error,
-          'new_captcha' => $captchaText
-        ]);
+      if (!Csrf::validate($_POST['csrf_token'])) {
+        throw new Exception('Invalid CSRF token');
       }
+
+      $auth->register($data);
+
+      echo json_encode([
+        'status' => 'success',
+        'message' => 'Staff registered successfully',
+        'new_captcha' => $captchaText,
+        'redirect' => './index.php'
+      ]);
+    } catch (AuthException $e) {
+      $db_error = $e->getMessage();
+      echo json_encode([
+        'status' => 'error',
+        'errors' => ['db' => $db_error],
+        'new_captcha' => $captchaText
+      ]);
     } catch (Exception $e) {
-      $conn->rollback();
-      $db_error = "Failed to insert data: " . $e->getMessage();
+      $db_error = $e->getMessage();
       echo json_encode([
         'status' => 'error',
         'errors' => ['db' => $db_error],
@@ -131,8 +140,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       ]);
     }
   }
-
-  $conn->close();
   exit;
 } else {
   $captchaText = generateCaptcha();
@@ -184,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <h3 class="text-center text-primary py-3">Staff Registration Form</h3>
           <!-- Form Starting -->
           <form id="reg_form" method="POST" autocomplete="off" novalidate>
-
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>" >
             <div class="row g-3">
               <?php foreach ($personalDetailsfields as $field): ?>
                 <div class="col-md-<?= $field['col'] ?? 6 ?> mb-2">
@@ -195,17 +202,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   <?php if ($field['type'] === 'select'): ?>
                     <select class="form-select form-select-sm" name="<?= $field['name'] ?>" id="<?= $field['name'] ?>" <?= $field['required'] ? 'required' : '' ?>>
                       <option value=""><?= $field['placeholder'] ?? 'Select' ?></option>
-                      <?php
-                      if ($field['options'] instanceof mysqli_result) {
-                        while ($row = $field['options']->fetch_assoc()) {
-                          echo "<option value='" . htmlspecialchars($row['id'], ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($row[$field['name']], ENT_QUOTES, 'UTF-8') . "</option>";
-                        }
-                      } else {
-                        foreach ($field['options'] as $opt) {
-                          echo "<option value='{$opt['value']}'>{$opt['text']}</option>";
-                        }
-                      }
-                      ?>
+                      <?php foreach ($field['options'] as $opt): ?>
+                        <option value="<?= htmlspecialchars($opt['id']) ?>">
+                          <?= htmlspecialchars($opt[$field['name']]) ?>
+                        </option>
+                      <?php endforeach; ?>
                     </select>
                   <?php else: ?>
                     <!-- Text, Date -->
@@ -248,7 +249,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <!-- Submit -->
-            <div class="text-end my-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <a href="./index.php" class="link-primary small text-decoration-none">
+                Already have an account? Sign in
+              </a>
               <button class="btn btn-primary text-white" type="submit">
                 Submit
               </button>

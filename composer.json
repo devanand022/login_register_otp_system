@@ -7,7 +7,8 @@
     "autoload": {
         "psr-4": {
             "Database\\": "DATABASE/",
-            "IncludeFiles\\": "INCLUDE/"
+            "IncludeFiles\\": "INCLUDE/",
+            "App\\": "app/"
         },
         "files": [
             "INCLUDE/generateCaptcha.php"
